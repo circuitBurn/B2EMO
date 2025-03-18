@@ -17,7 +17,7 @@ constexpr int CH_MP3_TRIG = 15;
 constexpr int SBUS_RX = 16;
 constexpr int SBUS_TX = 17;
 
-// DFPlayer module
+// DFPlayer module pins
 constexpr int MP3_RX = 18;
 constexpr int MP3_TX = 19;
 constexpr int MP3_BUSY = 23;
@@ -90,7 +90,7 @@ void controlDataRingMotors()
   {
     case DataRingState::FAST:
       {
-        // Set quicker spin and delay times (ms)
+        // Set shorter spin and delay times (ms)
         spinLow = 100;
         spinHigh = 400;
         delayLow = 500;
