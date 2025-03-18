@@ -10,3 +10,8 @@
 ## RF System
 * [FrSky Archer Plus R12+](https://www.frsky-rc.com/product/archer-plus-r12/)
 * [Horus X10S Express](https://www.frsky-rc.com/product/horus-x10s-express/)
+
+## Arduino Libraries
+* [Countdown](https://github.com/RobTillaart/CountDown)
+* [DFPlayerMini_Fast](https://github.com/PowerBroker2/DFPlayerMini_Fast)
+* [Bolderflight SBUS](https://github.com/bolderflight/sbus)
