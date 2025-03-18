@@ -2,15 +2,14 @@
 #include "sbus.h"
 #include <SoftwareSerial.h>
 #include "CountDown.h"
+#include "DataRingState.h"
 
 // SBUS RC values
 constexpr int RC_HIGH = 1811;
 constexpr int RC_MID = 992;
 constexpr int RC_LOW = 172;
 
-// Channels (Start at 0, on Transmitter will start at 1)sss
-constexpr int CH_UPPER_LIFT = 5;
-constexpr int CH_LOWER_LIFT = 6;
+// Channels (Offset by 1 from transmitter: Channel 1 on TX is 0 here)
 constexpr int CH_DATA_RINGS = 14;
 constexpr int CH_MP3_TRIG = 15;
 
@@ -28,30 +27,39 @@ constexpr int M1 = 32;
 constexpr int E1 = 33;
 constexpr int M2 = 25;
 constexpr int E2 = 26;
-constexpr int DATARING_SPEED = 110; // 0- 255
+constexpr int DATA_RING_SPEED = 110; // 0 - 255
 
-CountDown bodyLiftCountdown;
-CountDown e1Countdown;
-CountDown e2Countdown;
+// Data ring timers used to randomize spin/stop
+CountDown e1Timer;
+CountDown e2Timer;
 
+// DFRobot motor controller control values
 bool e1Direction = LOW;
 int e1Speed = 0;
 bool e2Direction = LOW;
 int e2Speed = 0;
 
+// Randomized spin and delay values
+int spinLow = 0;
+int spinHigh = 0;
+int delayLow = 0;
+int delayHigh = 0;
+
+// FrSky SBUS
 bfs::SbusRx sbus_rx(&Serial1, SBUS_RX, SBUS_TX, true);
 bfs::SbusData data;
 
+// DFPlayer Mini
 SoftwareSerial mySerial(MP3_RX, MP3_TX);
 DFPlayerMini_Fast dfPlayer;
 
-int prevLowerLift;
-int prevUpperLift;
-bool bodyLiftInProgress = false;
+// Sound trigger button debounce
+const int debounceDelay = 50;
+int lastStableValue = -1;
+unsigned long lastDebounceTime = 0;
 
 void setup()
 {
-  pinMode(MP3_BUSY, INPUT);
   pinMode(M1, OUTPUT);
   pinMode(E1, OUTPUT);
   pinMode(M2, OUTPUT);
@@ -62,12 +70,6 @@ void setup()
   dfPlayer.volume(8);
 
   sbus_rx.Begin();
-  if (sbus_rx.Read())
-  {
-    data = sbus_rx.data();
-    prevLowerLift = data.ch[CH_LOWER_LIFT];
-    prevUpperLift = data.ch[CH_UPPER_LIFT];
-  }
 }
 
 void loop()
@@ -80,108 +82,121 @@ void loop()
   }
 }
 
-void stopDataRings()
-{
-  e1Speed = 0;
-  e1Countdown.stop();
-  e2Speed = 0;
-  e2Countdown.stop();
-  bodyLiftCountdown.stop();
-  updateMotor(M1, E1, e1Direction, e1Speed);
-  updateMotor(M2, E2, e2Direction, e2Speed);
-}
-
 void controlDataRingMotors()
 {
-  if (isBodyLiftActive() && !bodyLiftInProgress)
+  // Read the data ring mode selection switch
+  DataRingState state = getDataRingSwitchState();
+  switch (state)
   {
-    e1Direction = LOW;
-    e1Speed = DATARING_SPEED;
-    e1Countdown.stop();
-    e2Direction = LOW;
-    e2Speed = DATARING_SPEED;
-    e2Countdown.stop();
-    bodyLiftInProgress = true;
+    case DataRingState::FAST:
+      {
+        // Set quicker spin and delay times (ms)
+        spinLow = 100;
+        spinHigh = 400;
+        delayLow = 500;
+        delayHigh = 500;
+        break;
+      }
+    case DataRingState::SLOW:
+      {
+        // Set longer spin and delay times (ms)
+        spinLow = 150;
+        spinHigh = 750;
+        delayLow = 800;
+        delayHigh = 2500;
+        break;
+      }
+    case DataRingState::IDLE:
+      {
+        // Stop all timers and turn off the motors
+        // Returns immediately since we don't need to check anything else
+        e1Speed = 0;
+        e2Speed = 0;
+        e1Timer.stop();
+        e2Timer.stop();
+        updateMotor(M1, E1, e1Direction, e1Speed);
+        updateMotor(M2, E2, e2Direction, e2Speed);
+        return;
+      }
   }
-  else if (!isBodyLiftActive() && bodyLiftInProgress)
-  {
-    stopDataRings();
-    bodyLiftInProgress = false;
-  }
-  else if (areDataRingsActive())
-  {
-    int spinLow = 150, spinHigh = 750, delayLow = 800, delayHigh = 2500;
-    if (data.ch[CH_DATA_RINGS] == RC_MID)
-    {
-      spinLow = 100;
-      spinHigh = 400;
-      delayLow = 500;
-      delayHigh = 500;
-    }
 
-    if (e1Countdown.isStopped() && e1Speed == 0)
-    {
-      e1Countdown.start(random(spinLow, spinHigh));
-      e1Direction = random(0, 2);
-      e1Speed = DATARING_SPEED;
-    }
-    if (e2Countdown.isStopped() && e2Speed == 0)
-    {
-      e2Countdown.start(random(spinLow, spinHigh));
-      e2Direction = random(0, 2);
-      e2Speed = DATARING_SPEED;
-    }
-    if (e1Countdown.isStopped() && e1Speed == DATARING_SPEED)
-    {
-      e1Speed = 0;
-      e1Countdown.start(random(delayLow, delayHigh));
-    }
-    if (e2Countdown.isStopped() && e2Speed == DATARING_SPEED)
-    {
-      e2Speed = 0;
-      e2Countdown.start(random(delayLow, delayHigh));
-    }
-  }
-  else if (!bodyLiftInProgress)
+  // Start upper ring
+  if (e1Timer.isStopped() && e1Speed == 0)
   {
-    stopDataRings();
+    // Set a randomized spin time
+    e1Timer.start(random(spinLow, spinHigh));
+
+    // Randomize direction
+    e1Direction = random(0, 2);
+
+    // TODO: randomize speed
+    e1Speed = DATA_RING_SPEED;
+  }
+
+  // Start lower ring
+  if (e2Timer.isStopped() && e2Speed == 0)
+  {
+    // Set a randomized spin time
+    e2Timer.start(random(spinLow, spinHigh));
+
+    // Randomize direction
+    e2Direction = random(0, 2);
+
+    // TODO: randomize speed
+    e2Speed = DATA_RING_SPEED;
+  }
+
+  // Stop upper ring
+  if (e1Timer.isStopped() && e1Speed == DATA_RING_SPEED)
+  {
+    e1Speed = 0;
+
+    // Set a randomized delay before starting again
+    e1Timer.start(random(delayLow, delayHigh));
+  }
+
+  // Stop lower ring
+  if (e2Timer.isStopped() && e2Speed == DATA_RING_SPEED)
+  {
+    e2Speed = 0;
+
+    // Set a randomized delay before starting again
+    e2Timer.start(random(delayLow, delayHigh));
   }
 
   updateMotor(M1, E1, e1Direction, e1Speed);
   updateMotor(M2, E2, e2Direction, e2Speed);
 }
 
-void playTriggeredSound()
+/**
+   Returns the state corresponding to the data ring mode selector switch on the transmitter
+*/
+DataRingState getDataRingSwitchState()
 {
-  int soundIndex = getSoundIndex(data.ch[CH_MP3_TRIG]);
-  if (soundIndex > 0)
-    dfPlayer.play(soundIndex);
-}
-
-bool isBodyLiftActive()
-{
-  if (data.ch[CH_LOWER_LIFT] != prevLowerLift || data.ch[CH_UPPER_LIFT] != prevUpperLift)
+  if (data.ch[CH_DATA_RINGS] == RC_LOW)
   {
-    if (bodyLiftCountdown.isStopped())
-    {
-      bodyLiftCountdown.start(250);
-      prevLowerLift = data.ch[CH_LOWER_LIFT];
-      prevUpperLift = data.ch[CH_UPPER_LIFT];
-      return true;
-    }
+    return DataRingState::FAST;
   }
-  return bodyLiftCountdown.remaining() > 0;
+  else if (data.ch[CH_DATA_RINGS] == RC_MID)
+  {
+    return DataRingState::SLOW;
+  }
+
+  return DataRingState::IDLE;
 }
 
-bool areDataRingsActive()
+/**
+   Communicate with a single motor on the motor controller
+*/
+void updateMotor(int motor, int enable, bool direction, int speed)
 {
-  return data.ch[CH_DATA_RINGS] == RC_LOW || data.ch[CH_DATA_RINGS] == RC_MID;
+  digitalWrite(motor, direction);
+  analogWrite(enable, speed);
 }
 
-const int debounceDelay = 50; // Adjust debounce delay as needed
-int lastStableValue = -1;
-unsigned long lastDebounceTime = 0;
-
+/**
+   Read the sound button index from 1 to 10
+*/
 int getSoundIndex(int triggerValue)
 {
   static int lastValue = -1;
@@ -204,20 +219,20 @@ int getSoundIndex(int triggerValue)
 
   // Process only the stable value
   if (lastStableValue < 172 || lastStableValue > 1680)
+  {
     return -1;
+  }
   return 10 - (lastStableValue - 172) / 180;
 }
 
-
-//int getSoundIndex(int triggerValue)
-//{
-//    if (triggerValue < 172 || triggerValue > 1680)
-//        return -1;
-//    return 10 - (triggerValue - 172) / 180;
-//}
-
-void updateMotor(int motor, int enable, bool direction, int speed)
+/**
+ * Play the triggered sound immediately
+ */
+void playTriggeredSound()
 {
-  digitalWrite(motor, direction);
-  analogWrite(enable, speed);
+  int soundIndex = getSoundIndex(data.ch[CH_MP3_TRIG]);
+  if (soundIndex > 0)
+  {
+    dfPlayer.play(soundIndex);
+  }
 }
