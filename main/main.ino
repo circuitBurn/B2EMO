@@ -23,10 +23,10 @@ constexpr int MP3_TX = 19;
 constexpr int MP3_BUSY = 23;
 
 // Data ring motor control pins
-constexpr int M1 = 32;
-constexpr int E1 = 33;
-constexpr int M2 = 25;
-constexpr int E2 = 26;
+constexpr int M1 = 25;
+constexpr int E1 = 26;
+constexpr int M2 = 32;
+constexpr int E2 = 33;
 constexpr int DATA_RING_SPEED = 110; // 0 - 255
 
 // Data ring timers used to randomize spin/stop
