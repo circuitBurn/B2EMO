@@ -3,7 +3,7 @@
 ### Build Log
 
 #### March 26, 2025
-This is still underdevelopment!
+This is still under development!
 
 The PCB is undergoing a revision and will be released once it is built and tested.
 
