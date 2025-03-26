@@ -1,6 +1,15 @@
 # B2EMO
 
-## PCB Components
+### Build Log
+
+#### March 26, 2025
+This is still underdevelopment!
+
+The PCB is undergoing a revision and will be released once it is built and tested.
+
+I am adding a temporary wiring diagram and for anyone wanting to implement the automated inner ring control.
+
+## PCB Components (In Progress)
 * [Pololu 5V 3.5A Regulator](https://ca.robotshop.com/products/5v-32a-step-down-voltage-regulator-d36v28f5)
 * [Dual DC Motor controller 2A](https://wiki.dfrobot.com/MD1.3_2A_Dual_Motor_Controller_SKU_DRI0002)
 * [DFPlayer Mini](https://wiki.dfrobot.com/DFPlayer_Mini_SKU_DFR0299)
