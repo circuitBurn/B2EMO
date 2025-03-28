@@ -24,3 +24,7 @@ I am adding a temporary wiring diagram and for anyone wanting to implement the a
 * [Countdown](https://github.com/RobTillaart/CountDown)
 * [DFPlayerMini_Fast](https://github.com/PowerBroker2/DFPlayerMini_Fast)
 * [Bolderflight SBUS](https://github.com/bolderflight/sbus)
+
+## Temporary Wiring Diagram
+This is a temporary wiring diagram outlining the minimum circuit needed to get the ESP32 controlling the ring motors.
+![Wiring Diagram](https://github.com/circuitBurn/B2EMO/blob/development/resources/wiring_diagram.jpg)
