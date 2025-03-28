@@ -10,7 +10,7 @@ The PCB is undergoing a revision and will be released once it is built and teste
 I am adding a temporary wiring diagram and for anyone wanting to implement the automated inner ring control.
 
 ## Bill of Materials
-[BOM]([https://www.example.com](https://github.com/circuitBurn/B2EMO/blob/development/BOM.pdf))
+[BOM](https://github.com/circuitBurn/B2EMO/blob/development/BOM.pdf)
 
 ## RF System
 * [FrSky Archer Plus R12+](https://www.frsky-rc.com/product/archer-plus-r12/)
